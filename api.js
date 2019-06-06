@@ -1,3 +1,7 @@
+/*
+The way the app is setup at the moment, it will get all blogs, all the time. Then when it tries to post to directus is when the duplicates will be prevented from posting. Would be better if we could do some sort of check before sending the post request. Potentially a query on the end of the get request, to only get requests from the last x amount of time
+*/
+
 const axios = require('axios');
 require("dotenv").config(); 
 
@@ -18,7 +22,7 @@ const getMediumFeed = async () =>  {
 }
 
 // Post blog information to DIRECTUS
-// Currently not the most efficient - but gets the job done. It will go through each blog and post them to directus. Directus is set up for only unique URLs, so will reject any duplication
+// Currently not the most efficient - but gets the job done. It will go through each blog and post them to directus. Directus is set up for only unique URLs, so will reject any duplication. This does however cause an issue, as if a blog is loaded into directus, then deleted, it can never be loaded back in
 const postToDirectus = async (blogs) => {
     // Get the current bearer token
     const token = await getBearerToken();
@@ -27,8 +31,6 @@ const postToDirectus = async (blogs) => {
         try {
             const response = await axios.post(`${process.env.URL}/_/items/blog`, {
                 title: blog.title,
-                // publishdate: blog.pubDate,
-                status: "draft",
                 url: blog.guid,
                 imageurl: blog.thumbnail,
                 content: blog.content
@@ -39,7 +41,7 @@ const postToDirectus = async (blogs) => {
                 }
             })
             .then(response => console.log(response))
-            .catch(error => console.log(error))
+            .catch(error => console.log(error.response.statusText))
         } catch (error) {
             console.log(error);
         }
