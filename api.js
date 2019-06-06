@@ -4,10 +4,11 @@ require("dotenv").config();
 // Get all the blogs written by CoderAcademy
 const getMediumFeed = async () =>  {
 	try {
+        // Worth noting that the rss is converted to json using the below link. If this breaks for whatever reason, there are lots of alternatives
         const response = await axios.get(`https://api.rss2json.com/v1/api.json?rss_url=https://medium.com/feed/@coderacademy`);
 
         // If we want to post more data
-        return response.data.items[0];
+        return response.data.items;
 
         // If we end up going down the route of only posting the URL
         // return response.data.items[0].guid;
@@ -17,27 +18,31 @@ const getMediumFeed = async () =>  {
 }
 
 // Post blog information to DIRECTUS
-const postToDirectus = async (blog) => {
+// Currently not the most efficient - but gets the job done. It will go through each blog and post them to directus. Directus is set up for only unique URLs, so will reject any duplication
+const postToDirectus = async (blogs) => {
     // Get the current bearer token
     const token = await getBearerToken();
-    
-    try {
-        const response = await axios.post('http://localhost:8888/_/items/blog', {
-            title: blog.title,
-            status: "draft",
-            url: blog.guid,
-            imageurl: blog.thumbnail,
-            content: blog.content
-        },
-        {
-            headers: {
-                "Authorization": `bearer ${token}`
-            }
-        })
-        .then(response => console.log(response))
-        .catch(error => console.log(error))
-    } catch (error) {
-        console.log(error);
+
+    for (let blog of blogs) {
+        try {
+            const response = await axios.post(`${process.env.URL}/_/items/blog`, {
+                title: blog.title,
+                // publishdate: blog.pubDate,
+                status: "draft",
+                url: blog.guid,
+                imageurl: blog.thumbnail,
+                content: blog.content
+            },
+            {
+                headers: {
+                    "Authorization": `bearer ${token}`
+                }
+            })
+            .then(response => console.log(response))
+            .catch(error => console.log(error))
+        } catch (error) {
+            console.log(error);
+        }
     }
 }
 
