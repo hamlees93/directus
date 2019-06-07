@@ -1,32 +1,45 @@
 /*
-The way the app is setup at the moment, it will get all blogs, all the time. Then when it tries to post to directus is when the duplicates will be prevented from posting. Would be better if we could do some sort of check before sending the post request. Potentially a query on the end of the get request, to only get requests from the last x amount of time
+Current Setup of App:
+It will make a call to directus, to pull all alumni that have been entered. It will send this response to medium to get the rss feed of ALL blogs written by ALL alumni. This will go through a converter to get it to JSON. These blogs will then be posted to the directus blogs collection. Before posting, a check will be made to ensure the categories array is not empty. If it is empty, it is a comment.
 */
+
+/*************************
+ * NOTE: AT THE MOMENT, IT SEEMS WE CAN ONLY MAKE 10 REQUESTS!
+ */
 
 const axios = require('axios');
 require("dotenv").config(); 
 
-const coder = [
-    '@coderacademy',
-    '@alxdwa',
-    '@wlei6277'
-];
+// Get all alumni that have been entered into directus. Must make a token call first
+const getCoderAlumni = async () => {
+    const token = await getBearerToken();
+
+    try {
+        const response = await axios.get(`${process.env.URL}/_/items/alumni?fields=username`, {
+            headers: {
+                "Authorization": `bearer ${token}`
+            }
+        });
+
+        return response.data.data;
+    } catch (error) {
+        console.log(error);
+    }
+}
 
 // Get all the blogs written by CoderAcademy
 const getMediumFeed = async (coder) =>  {
     const blogs = [];
-
+    
     for (let dev of coder) {
         try {
             // Worth noting that the rss is converted to json using the below link. If this breaks for whatever reason, there are lots of alternatives
-            const response = await axios.get(`https://api.rss2json.com/v1/api.json?rss_url=https://medium.com/feed/${dev}`);
+            const response = await axios.get(`https://api.rss2json.com/v1/api.json?rss_url=https://medium.com/feed/${dev.username}`);
 
-            // If we want to post more data
             blogs.push(response.data.items);
-
-            // If we end up going down the route of only posting the URL
-            // return response.data.items[0].guid;
         } catch (error) {
-            console.error(error);
+            console.log(error.response.config.url);
+            console.log(error.response.statusText);
         }
     }
     
@@ -39,27 +52,28 @@ const postToDirectus = async (coder) => {
     // Get the current bearer token
     const token = await getBearerToken();
 
-    // console.log(coder)
-
     for (let dev of coder) {
         for (let blog of dev) {
-            try {
-                const response = await axios.post(`${process.env.URL}/_/items/blog`, {
-                    title: blog.title,
-                    url: blog.guid,
-                    imageurl: blog.thumbnail,
-                    content: blog.content,
-                    author: blog.author
-                },
-                {
-                    headers: {
-                        "Authorization": `bearer ${token}`
-                    }
-                })
-                .then(response => console.log(response))
-                .catch(error => console.log(error.response.statusText))
-            } catch (error) {
-                console.log(error);
+            if (blog.categories.length > 0) {
+                try {
+                    const response = await axios.post(`${process.env.URL}/_/items/blog`, {
+                        title: blog.title,
+                        url: blog.guid,
+                        imageurl: blog.thumbnail,
+                        content: blog.content,
+                        author: blog.author,
+                        pubdate: blog.pubDate.split(' ')[0] 
+                    },
+                    {
+                        headers: {
+                            "Authorization": `bearer ${token}`
+                        }
+                    })
+                    .then(response => console.log(response.statusText))
+                    .catch(error => console.log(error.response.statusText))
+                } catch (error) {
+                    console.log(error);
+                }
             }
         }
     }
@@ -80,4 +94,6 @@ const getBearerToken = async () => {
     }
 }
 
-getMediumFeed(coder).then(result => postToDirectus(result));
+getCoderAlumni()
+    .then(result => getMediumFeed(result)
+    .then(result => postToDirectus(result)));
