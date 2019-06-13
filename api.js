@@ -1,14 +1,13 @@
 /*
 Current Setup of App:
 It will make a call to directus, to pull all alumni that have been entered. It will send this response to medium to get the rss feed of ALL blogs written by ALL alumni. This will go through a converter to get it to JSON. These blogs will then be posted to the directus blogs collection. Before posting, a check will be made to ensure the categories array is not empty. If it is empty, it is a comment.
-*/
 
-/*************************
- * NOTE: AT THE MOMENT, IT SEEMS WE CAN ONLY MAKE 10 REQUESTS!
- */
+An API Key had to be created for rss2json that limits calls to 1000/day, which we should be fine with
+*/
 
 const axios = require('axios');
 require("dotenv").config(); 
+
 
 // Get all alumni that have been entered into directus. Must make a token call first
 const getCoderAlumni = async () => {
@@ -29,12 +28,22 @@ const getCoderAlumni = async () => {
 
 // Get all the blogs written by CoderAcademy
 const getMediumFeed = async (coder) =>  {
+    
     const blogs = [];
     
     for (let dev of coder) {
+        // Worth noting that the rss is converted to json using the below link. If this breaks for whatever reason, there are lots of alternatives
+        const url = 'https://api.rss2json.com/v1/api.json';
+
+        const params = {
+            params: {
+                'rss_url': `https://medium.com/feed/${dev.username}`,
+                'api_key': process.env.API_KEY,
+            }
+        };
+
         try {
-            // Worth noting that the rss is converted to json using the below link. If this breaks for whatever reason, there are lots of alternatives
-            const response = await axios.get(`https://api.rss2json.com/v1/api.json?rss_url=https://medium.com/feed/${dev.username}`);
+            const response = await axios.get(url, params)
 
             blogs.push(response.data.items);
         } catch (error) {
