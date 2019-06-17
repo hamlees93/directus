@@ -2,7 +2,7 @@
 Current Setup of App:
 It will make a call to directus, to pull all alumni that have been entered. It will send this response to medium to get the rss feed of ALL blogs written by ALL alumni. This will go through a converter to get it to JSON. These blogs will then be posted to the directus blogs collection. Before posting, a check will be made to ensure the categories array is not empty. If it is empty, it is a comment.
 
-An API Key had to be created for rss2json that limits calls to 1000/day, which we should be fine with
+An API Key had to be created for rss2json. This key allows for 10,000 calls per day - however, we are limited to 25 feeds - i.e. only allowed to track 25 students. So might have to choose the 25 most active on medium - or find another service
 */
 
 const axios = require('axios');
